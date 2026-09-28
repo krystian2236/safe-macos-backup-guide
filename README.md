@@ -1,23 +1,25 @@
-# Bezpieczny backup macOS i GitHub
+[English](README.md) | [Polski](README.pl.md)
 
-Publiczny poradnik tworzenia, sprawdzania i odtwarzania kopii. Przykładowe polecenia zakładają powłokę Zsh w macOS. Najpierw ustal zakres danych, potem wykonaj diagnostykę tylko do odczytu. Zapis i usuwanie są osobnymi, świadomymi krokami.
+# Safe macOS and GitHub backups
+
+A public guide to creating, checking, and restoring backups. Example commands assume Zsh on macOS. First define the scope of the data, then perform read-only diagnostics. Writing and deletion are separate, deliberate steps.
 
 <a id="index"></a>
-## Przejdź do
+## Go to
 
-| Etap | Rozdział |
+| Stage | Section |
 | --- | --- |
-| Przygotowanie | [Jak używać](#how-to-use) · [Bezpieczeństwo](#security) · [Struktura i kategorie](#structure) |
-| Wykonanie | [Procedura backupu](#backup) · [Weryfikacja](#verification) · [Projekty](#projects) |
-| Źródła | [GitHub](#github) · [SSH](#ssh) · [Konfiguracje aplikacji i Safari](#safari) |
-| Dalsza praca | [Odtwarzanie](#restore) · [Problemy i rozwiązania](#troubleshooting) · [Publikowanie](#publishing) · [Przykład](#example) |
+| Preparation | [How to use](#how-to-use) · [Security](#security) · [Structure and categories](#structure) |
+| Execution | [Backup procedure](#backup) · [Verification](#verification) · [Projects](#projects) |
+| Sources | [GitHub](#github) · [SSH](#ssh) · [Application and Safari settings](#safari) |
+| Further steps | [Restoration](#restore) · [Troubleshooting](#troubleshooting) · [Publishing](#publishing) · [Example](#example) |
 
 <a id="how-to-use"></a>
-## Jak używać tej instrukcji
+## How to use this guide
 
-Zapis `<...>` oznacza placeholder: własną wartość, którą trzeba podstawić przed wykonaniem polecenia. Znaków `<` i `>` **nie wpisuje się** do finalnych poleceń; powłoka mogłaby potraktować je jak przekierowanie. Przykład: `<BACKUP_VOLUME>` zastąp rzeczywistą ścieżką zamontowanego dysku. Ścieżki zawierające spacje ujmuj w cudzysłowy. Kod w tym poradniku jest wzorem, nie gotowym skryptem do bezrefleksyjnego uruchomienia.
+The notation `<...>` marks a placeholder: your own value to substitute before running a command. Do **not type** the `<` and `>` characters in final commands; the shell might interpret them as redirection. For example, replace `<BACKUP_VOLUME>` with the actual path of a mounted disk. Quote paths that contain spaces. The code in this guide is a template, not a ready-made script to run without review.
 
-Wszystkie poniższe dane są **fikcyjne**:
+All data below is **fictional**:
 
 ```text
 <HOME> = /Users/alex
@@ -26,27 +28,27 @@ Wszystkie poniższe dane są **fikcyjne**:
 <REPOSITORY_NAME> = ExampleApp
 ```
 
-Pozostałe placeholdery nazywają kategorię, projekt, plik, repozytorium lub wybrany snapshot. Przed kopiowaniem sprawdź, czy podstawiona ścieżka źródła i celu wskazuje właściwe miejsce.
+Other placeholders name a category, project, file, repository, or selected snapshot. Before copying, check that the substituted source and destination paths point to the intended locations.
 
-`<BRANCH_NAME>` oznacza nazwę gałęzi, `<COMMIT_SHA>` identyfikator commita, `<PROFILE_ID>` identyfikator profilu, a `<BUNDLE_IDENTIFIER>` identyfikator aplikacji. Traktuj je jako przykładowe etykiety, nigdy jako wartości z cudzego środowiska.
+`<BRANCH_NAME>` denotes a branch name, `<COMMIT_SHA>` a commit identifier, `<PROFILE_ID>` a profile identifier, and `<BUNDLE_IDENTIFIER>` an application identifier. Treat them as example labels, never as values from someone else's environment.
 
-[↑ Powrót do spisu](#index)
+[↑ Back to contents](#index)
 
 <a id="security"></a>
-## Bezpieczeństwo
+## Security
 
-- **Nigdy nie publikuj** prywatnego klucza SSH, tokenów, haseł ani plików credentials. Plik `*.pub` jest publiczną częścią pary kluczy, ale także jego publikację oceniaj świadomie.
-- Kopię zawierającą sekrety przechowuj na zaszyfrowanym nośniku; ogranicz dostęp do nośnika i kopii. Publiczne repozytorium GitHub nie jest miejscem na taki backup.
-- Przed publikacją README lub poradnika skontroluj tekst i historię commitów pod kątem sekretów oraz danych identyfikujących.
-- Zaczynaj od diagnostyki tylko do odczytu. Zapis wykonuj po sprawdzeniu źródła, celu, filtrów i wolnego miejsca. **DELETE zawsze na końcu**, po pełnej weryfikacji i upewnieniu się, że nie usuwasz jedynej kopii.
-- Nie używaj `curl | sh`. `sudo` stosuj tylko wtedy, gdy jest naprawdę potrzebne, z jednoznaczną ścieżką i zakresem operacji.
+- **Never publish** a private SSH key, tokens, passwords, or credential files. A `*.pub` file is the public part of a key pair, but consider its publication deliberately as well.
+- Store backups containing secrets on encrypted media; restrict access to the media and the backups. A public GitHub repository is no place for such a backup.
+- Before publishing a README or guide, review its text and commit history for secrets and identifying data.
+- Start with read-only diagnostics. Write only after checking the source, destination, filters, and free space. **DELETE always comes last**, after full verification and confirmation that you are not deleting the only copy.
+- Do not use `curl | sh`. Use `sudo` only when truly necessary, with an unambiguous path and scope of operation.
 
-Przy błędzie zatrzymaj usuwanie i zachowaj działające źródło. Zobacz [procedurę](#backup) i [diagnostykę](#troubleshooting).
+If an error occurs, stop deletion and preserve the working source. See the [procedure](#backup) and [diagnostics](#troubleshooting).
 
-[↑ Powrót do spisu](#index)
+[↑ Back to contents](#index)
 
 <a id="structure"></a>
-## Struktura backupu i kategorie
+## Backup structure and categories
 
 ```text
 <BACKUP_VOLUME>/
@@ -64,50 +66,50 @@ Przy błędzie zatrzymaj usuwanie i zachowaj działające źródło. Zobacz [pro
     └── <CATEGORY>/<YYYY-MM-DD>/
 ```
 
-`CURRENT` to najnowsza **zweryfikowana** kopia potrzebna do szybkiego odtworzenia. `ARCHIVE` przechowuje starsze, zweryfikowane punkty historyczne. Wybieraj datę stanu archiwizowanego; nie łącz różnych snapshotów w jednym katalogu. Przed zastąpieniem `CURRENT/<CATEGORY>/` zabezpiecz poprzedni ważny stan w `ARCHIVE` i sprawdź go. Nie nadpisuj jedynej dobrej kopii.
+`CURRENT` is the latest **verified** copy needed for quick restoration. `ARCHIVE` holds older, verified historical points. Choose the date of the state being archived; do not mix different snapshots in one directory. Before replacing `CURRENT/<CATEGORY>/`, preserve the previous important state in `ARCHIVE` and check it. Do not overwrite the only good copy.
 
-| Kategoria | Co zachować i dlaczego | Czego zwykle nie kopiować i dlaczego | Jak zweryfikować i odtworzyć |
+| Category | What to keep and why | What usually not to copy and why | How to verify and restore |
 | --- | --- | --- | --- |
-| Codex | Używaną konfigurację, własne instrukcje i skrypty; odtwarzają sposób pracy. | Cache, sesje i pliki uwierzytelnienia bez osobnej decyzji; bywają odtwarzalne lub wrażliwe. | SHA256, porównanie plików i uruchomienie narzędzia; przywróć tylko potrzebne ustawienia po porównaniu z aktywnymi. |
-| Ollama | Modelfile, własne szablony i ustawienia; opisują konfigurację modeli. | Pobrane wagi, jeśli można je ponownie pobrać; zajmują dużo miejsca. | SHA256 i kontrola Modelfile; przywróć pliki, a wagi pobierz lub odtwórz z osobnej kopii. Sam Modelfile nie zawiera wag. |
-| AI-Tools | Własne skrypty, definicje i dokumentację; mogą być unikalne. | Środowiska wirtualne, cache, logi i sekrety; zwykle są odtwarzalne lub wrażliwe. | SHA256, kontrola składni i mały test działania; przywróć wybrane skrypty oraz zależności. |
-| Zsh | Używane pliki konfiguracji, funkcje i własne skrypty; odtwarzają powłokę. | Historię poleceń i cache bez osobnej potrzeby; mogą ujawniać dane. | SHA256 i `zsh -n` na przywracanym pliku; po porównaniu odtwórz tylko potrzebne wpisy. |
-| Homebrew | Listy pakietów, casków, tapów lub Brewfile; pozwalają odtworzyć instalacje. | Cache pobrań i butelki, jeśli są dostępne; zajmują miejsce. | SHA256 i odczyt list; po przywróceniu zainstaluj wybrane pozycje i sprawdź wersje. |
-| Projects | Kod, `.git`, pliki projektu i unikalne artefakty; mogą nie istnieć gdzie indziej. | Wyłącznie potwierdzone buildy i cache; szczegóły w [Projektach](#projects). | SHA256, checksum dry-run i testy Git; przywróć projekt w osobnym miejscu, potem sprawdź historię i build. |
-| iTerm2 | Preferences, profile, snippets, shell integration i własne skrypty; odtwarzają układ pracy. | Cache, historię i środowiska narzędzi; bywają duże lub wrażliwe. | SHA256, `plutil -lint` dla plist i kontrola widoczności profili; przywróć tylko potrzebne pliki. |
-| SSH | Potrzebne klucze i konfigurację; mogą być niemożliwe do ponownego wygenerowania z tą samą tożsamością. | Sockety agenta i pliki runtime; nie są trwałą konfiguracją. | SHA256, uprawnienia i fingerprint **własnego** klucza publicznego; przywróć z restrykcyjnymi uprawnieniami. |
-| Safari | Potrzebne preferences, profile, konfiguracje rozszerzeń lub snippets; odtwarzają ustawienia. | Cache, historię, runtime i całe kontenery bez audytu; mogą być ogromne lub wrażliwe. | SHA256, `plutil -lint` i kontrola ustawień w aplikacji; odtwarzaj konkretny wpis lub plik. |
+| Codex | Configuration in use, your instructions and scripts; they restore your workflow. | Cache, sessions, and authentication files without a separate decision; they may be reproducible or sensitive. | SHA256, file comparison, and running the tool; restore only needed settings after comparing them with active settings. |
+| Ollama | Modelfiles, your templates and settings; they describe model configuration. | Downloaded weights if they can be downloaded again; they take up substantial space. | SHA256 and Modelfile review; restore files, then download the weights or restore them from a separate backup. A Modelfile alone does not contain weights. |
+| AI-Tools | Your scripts, definitions and documentation; they may be unique. | Virtual environments, cache, logs and secrets; they are usually reproducible or sensitive. | SHA256, syntax check and a small functional test; restore selected scripts and dependencies. |
+| Zsh | Configuration files in use, functions and your scripts; they restore the shell. | Command history and cache without a specific need; they may expose data. | SHA256 and `zsh -n` on the file being restored; after comparison, restore only needed entries. |
+| Homebrew | Package, cask and tap lists or a Brewfile; they allow installations to be restored. | Download cache and bottles if available; they take up space. | SHA256 and review of the lists; after restoration, install selected items and check versions. |
+| Projects | Code, `.git`, project files and unique artifacts; they may not exist elsewhere. | Only confirmed builds and cache; details in [Projects](#projects). | SHA256, checksum dry-run and Git checks; restore the project in a separate location, then check history and the build. |
+| iTerm2 | Preferences, profiles, snippets, shell integration and your scripts; they restore the workspace layout. | Cache, history and tool environments; they can be large or sensitive. | SHA256, `plutil -lint` for plist files and checking profile visibility; restore only needed files. |
+| SSH | Needed keys and configuration; they may be impossible to regenerate with the same identity. | Agent sockets and runtime files; they are not persistent configuration. | SHA256, permissions and the fingerprint of **your own** public key; restore with restrictive permissions. |
+| Safari | Needed preferences, profiles, extension settings or snippets; they restore settings. | Cache, history, runtime files and whole containers without review; they may be huge or sensitive. | SHA256, `plutil -lint` and checking settings in the application; restore a specific entry or file. |
 
-Lista kategorii jest szablonem. Przed włączeniem danych do kopii oceń ich poufność, rozmiar i możliwość ponownego pobrania.
+The category list is a template. Before including data in a backup, assess its confidentiality, size, and whether it can be downloaded again.
 
-[↑ Powrót do spisu](#index)
+[↑ Back to contents](#index)
 
 <a id="backup"></a>
-## Procedura backupu
+## Backup procedure
 
-Przykładowe `<SOURCE>` i `<DEST>` oznaczają odpowiednio katalog źródła oraz staging. Podstaw je dopiero po diagnostyce. Polecenia z `--delete` w tej sekcji mają `-n`, więc niczego nie usuwają; obejrzyj listę zmian. Właściwe usuwanie nie jest częścią kopiowania.
+The example `<SOURCE>` and `<DEST>` respectively mean the source directory and staging area. Substitute them only after diagnostics. Commands with `--delete` in this section also have `-n`, so they delete nothing; review the list of changes. Actual deletion is not part of copying.
 
-1. **Sprawdź montowanie dysku.** `mount` i `df -h <BACKUP_VOLUME>` muszą pokazać oczekiwany wolumin, nie pusty katalog lokalny.
-2. **Sprawdź źródło.** `ls -ld <SOURCE>` oraz lista potrzebnych plików potwierdzają jego istnienie i zakres. Dla repozytoriów sprawdź [Git](#github).
-3. **Sprawdź wolne miejsce.** Porównaj `du -sh <SOURCE>` z `df -h <BACKUP_VOLUME>`, uwzględniając dotychczasowe snapshoty i zapas.
-4. **Utwórz staging** `<CATEGORY>.incoming` na tym samym woluminie, w miejscu docelowym. Upewnij się, że nazwa nie wskazuje ważnej starszej kopii. Staging oddziela kopię nieukończoną od `CURRENT` lub `ARCHIVE`.
-5. **Skopiuj dane.** Po audycie filtrów użyj na przykład `rsync -a <SOURCE>/ <DEST>/`. Na macOS `-a` zachowuje strukturę, uprawnienia i czasy w zakresie obsługiwanym przez `rsync`; potrzebę ACL/xattr oceniaj osobno.
-6. **Napraw problemy z plikami specjalnymi.** Jeśli kopiowanie zgłasza socket lub inny plik runtime, zidentyfikuj go i wyklucz tylko ten element; uruchom `rsync` ponownie. Zobacz [problem socketów](#troubleshooting).
-7. **Wykonaj checksum dry-run.** `rsync -acn --delete --itemize-changes <SOURCE>/ <DEST>/` powinien dać zero różnic treści i listy plików po uwzględnieniu tych samych filtrów po obu stronach. Nie przechodź dalej przy niewyjaśnionej różnicy.
-8. **Utwórz `SHA256SUMS`** w katalogu staging według [wzoru](#verification).
-9. **Zweryfikuj SHA256.** Każdy wpis musi dać `OK`, a liczba wpisów ma odpowiadać liczbie plików danych.
-10. **Wykonaj dodatkowe testy Git**, jeśli kopia zawiera repozytorium: sprawdź branche, worktree, niepushowane commity i `git fsck --full` dla krytycznych repozytoriów. Zobacz [GitHub](#github).
-11. **Dopiero wtedy zmień nazwę `.incoming` na finalną.** Przed `mv` potwierdź, że ścieżka finalna nie istnieje albo że poprzedni stan został osobno, poprawnie zarchiwizowany. Zmiana nazwy w obrębie woluminu szybko ujawnia gotową kopię.
-12. **Stare źródło wolno usunąć dopiero po pełnej weryfikacji** `CURRENT` lub `ARCHIVE`, zgodności hashy, ocenie unikalnych danych i świadomej decyzji. Usunięcie jest ostatnią, osobną operacją.
+1. **Check that the disk is mounted.** `mount` and `df -h <BACKUP_VOLUME>` must show the expected volume, not an empty local directory.
+2. **Check the source.** `ls -ld <SOURCE>` and a list of needed files confirm its existence and scope. For repositories, check [Git](#github).
+3. **Check free space.** Compare `du -sh <SOURCE>` with `df -h <BACKUP_VOLUME>`, accounting for existing snapshots and spare capacity.
+4. **Create staging** named `<CATEGORY>.incoming` on the same volume, at the destination. Make sure the name does not refer to an important older backup. Staging keeps an incomplete copy separate from `CURRENT` or `ARCHIVE`.
+5. **Copy the data.** After reviewing filters, use, for example, `rsync -a <SOURCE>/ <DEST>/`. On macOS, `-a` preserves structure, permissions and timestamps to the extent supported by `rsync`; assess the need for ACL/xattr separately.
+6. **Resolve special-file problems.** If copying reports a socket or another runtime file, identify it and exclude only that item; run `rsync` again. See the [socket issue](#troubleshooting).
+7. **Run a checksum dry-run.** `rsync -acn --delete --itemize-changes <SOURCE>/ <DEST>/` should report zero differences in content and file lists after applying the same filters on both sides. Do not proceed with an unexplained difference.
+8. **Create `SHA256SUMS`** in the staging directory using the [template](#verification).
+9. **Verify SHA256.** Every entry must return `OK`, and the number of entries must equal the number of data files.
+10. **Run additional Git checks** if the copy contains a repository: check branches, worktrees, unpushed commits and `git fsck --full` for critical repositories. See [GitHub](#github).
+11. **Only then rename `.incoming` to the final name.** Before `mv`, confirm that the final path does not exist or that the previous state has been properly archived separately. Renaming within the volume quickly exposes the finished copy.
+12. **Delete the old source only after full verification** of `CURRENT` or `ARCHIVE`, matching hashes, assessment of unique data and a deliberate decision. Deletion is the last, separate operation.
 
-Jeśli `rsync` przerwie kopiowanie, zwykle zachowaj `.incoming`, popraw konkretny problem i uruchom kopiowanie ponownie. Po finalizacji ponownie sprawdź manifest z finalnego katalogu. Dalsze warunki opisuje [problem finalizacji](#troubleshooting).
+If `rsync` interrupts copying, usually keep `.incoming`, fix the specific problem and run the copy again. After finalization, check the manifest again from the final directory. The [finalization issue](#troubleshooting) describes further conditions.
 
-[↑ Powrót do spisu](#index)
+[↑ Back to contents](#index)
 
 <a id="verification"></a>
-## Weryfikacja backupu
+## Backup verification
 
-Z katalogu snapshotu lub `.incoming` wygeneruj manifest ze **względnymi** ścieżkami:
+From the snapshot or `.incoming` directory, generate a manifest with **relative** paths:
 
 ```zsh
 find . -type f ! -name SHA256SUMS -print0 \
@@ -116,44 +118,44 @@ find . -type f ! -name SHA256SUMS -print0 \
 shasum -a 256 -c SHA256SUMS
 ```
 
-Manifest nie zawiera samego siebie. Przy 100 plikach danych ma 100 wpisów, a cały katalog zawiera wtedy 101 zwykłych plików. Gdy wyłączasz inne pliki z manifestu, odnotuj to jawnie i odpowiednio skoryguj liczenie. Symboliczne linki, sockety i metadane nie są zwykłymi plikami objętymi powyższym `find`; sprawdź je osobno. Przy nazwach plików zawierających znak nowej linii zastosuj narzędzie obsługujące taki przypadek i przetestuj odczyt manifestu.
+The manifest does not include itself. With 100 data files, it has 100 entries, while the whole directory then contains 101 regular files. If you exclude other files from the manifest, document that explicitly and adjust the count accordingly. Symbolic links, sockets and metadata are not regular files covered by the `find` above; check them separately. For filenames containing a newline, use a tool that handles that case and test reading the manifest.
 
-Porównanie treści i listy plików przed utworzeniem manifestu:
+Compare content and file lists before creating the manifest:
 
 ```zsh
 rsync -acn --delete --itemize-changes <SOURCE>/ <DEST>/
 ```
 
-Zero output oznacza brak różnic treści i dodatkowych/brakujących plików w porównywanym zakresie. Po utworzeniu manifestu wyklucz go z porównania, na przykład `--exclude=/SHA256SUMS`, stosując identyczne inne filtry. Wynik dry-run nie potwierdza uprawnień, ACL, xattr ani poprawności wyboru źródła; sprawdź je osobno. `shasum -c` uruchamiaj z katalogu, do którego odnoszą się ścieżki manifestu.
+Zero output means no differences in content and no extra or missing files within the compared scope. After creating the manifest, exclude it from the comparison, for example with `--exclude=/SHA256SUMS`, applying the same other filters. A dry-run does not confirm permissions, ACL, xattr or correct source selection; check them separately. Run `shasum -c` from the directory to which the manifest paths refer.
 
-[↑ Powrót do spisu](#index)
+[↑ Back to contents](#index)
 
 <a id="projects"></a>
-## Projekty
+## Projects
 
-Zachowuj kod źródłowy, `.git`, lokalne branche, niepushowane commity, metadane worktree, pliki projektu oraz unikalne artefakty, których nie da się odtworzyć. Pełne `.git` często jest jedyną kopią lokalnej historii. Zobacz [GitHub](#github).
+Keep source code, `.git`, local branches, unpushed commits, worktree metadata, project files and unique artifacts that cannot be recreated. A complete `.git` is often the only copy of local history. See [GitHub](#github).
 
-Można rozważyć pomijanie `build/`, `builds/`, `DerivedData/`, `node_modules/`, `.gradle/`, `.godot/`, `cache/`, `dist/` i `export_templates/`. **Nigdy nie wykluczaj ich automatycznie bez audytu.** Gotowy APK, IPA lub inny artefakt może być jedyną zachowaną wersją.
+You may consider omitting `build/`, `builds/`, `DerivedData/`, `node_modules/`, `.gradle/`, `.godot/`, `cache/`, `dist/` and `export_templates/`. **Never exclude them automatically without review.** A finished APK, IPA or other artifact may be the only surviving version.
 
-Najpierw zbadaj rozmiary i kandydatów na dane generowalne:
+First inspect sizes and candidates for reproducible data:
 
 ```zsh
 du -sh <PROJECT>/*
 find <PROJECT> -type d \( -name build -o -name builds -o -name DerivedData -o -name node_modules -o -name .gradle -o -name .godot -o -name cache -o -name dist -o -name export_templates \) -print
 ```
 
-Pierwsze polecenie pomija ukryte pozycje, dlatego obejrzyj je także osobno. `find` tylko wskazuje kandydatów; każdą ścieżkę przejrzyj przed dodaniem filtra. Po kopiowaniu wykonaj [porównanie checksum](#verification) z tymi samymi filtrami.
+The first command omits hidden items, so inspect those separately too. `find` only points to candidates; review every path before adding a filter. After copying, perform the [checksum comparison](#verification) with the same filters.
 
-[↑ Powrót do spisu](#index)
+[↑ Back to contents](#index)
 
 <a id="github"></a>
-## GitHub a backup
+## GitHub and backups
 
-Lokalne repozytorium zawiera katalog roboczy i `.git`. GitHub jako `remote` przechowuje tylko dane wypchnięte do usługi. Niezależny backup GitHub to osobna kopia danych hostowanych, w tym potrzebnych metadanych pobranych przez API lub eksport. Żaden z tych trzech zakresów nie zastępuje automatycznie pozostałych.
+A local repository contains a working directory and `.git`. GitHub as a `remote` stores only data pushed to the service. An independent GitHub backup is a separate copy of hosted data, including needed metadata obtained through an API or export. None of these three scopes automatically replaces the others.
 
-`git clone` może nie odtworzyć lokalnych branchy i commitów niewypchniętych na serwer, worktree, dangling objects, issues, pull requestów, ustawień repozytorium ani branch protections. Dlatego pełne `.git` bywa ważne. Jeśli korzystasz z worktree, sprawdź powiązania między katalogami i zachowaj komplet metadanych; pojedynczy katalog roboczy może nie wystarczyć.
+`git clone` may fail to restore local branches and commits not pushed to the server, worktrees, dangling objects, issues, pull requests, repository settings or branch protections. This is why a complete `.git` can matter. If you use worktrees, check the connections between directories and preserve all metadata; a single working directory may not be enough.
 
-Diagnostyka lokalnego repozytorium jest tylko do odczytu:
+Local repository diagnostics are read-only:
 
 ```zsh
 git -C <PROJECT> status --short --branch
@@ -163,16 +165,16 @@ git -C <PROJECT> log --branches --not --remotes --oneline
 git -C <PROJECT> fsck --full
 ```
 
-Zapisz wyniki kontroli bez publikowania prywatnych adresów remote. `dangling` nie oznacza automatycznie uszkodzenia. Nie uruchamiaj `git gc`, `prune` ani nie kasuj packów przed potwierdzeniem, że potrzebne dane zostały odtworzone gdzie indziej.
+Record the check results without publishing private remote addresses. `dangling` does not automatically mean corruption. Do not run `git gc` or `prune`, or delete packs, before confirming that needed data has been restored elsewhere.
 
-[↑ Powrót do spisu](#index)
+[↑ Back to contents](#index)
 
 <a id="ssh"></a>
 ## SSH
 
-**NIGDY nie publikuj zawartości prywatnego klucza SSH.** `<SSH_PRIVATE_KEY>` oznacza prywatny plik, a `<SSH_PUBLIC_KEY>` odpowiadający mu plik `*.pub`. Klucz publiczny można przekazać usłudze, ale prywatny pozwala uwierzytelniać się jako właściciel i musi pozostać tajny.
+**NEVER publish the contents of a private SSH key.** `<SSH_PRIVATE_KEY>` denotes the private file and `<SSH_PUBLIC_KEY>` the corresponding `*.pub` file. The public key can be given to a service, but the private key allows authentication as its owner and must remain secret.
 
-Kopiuj potrzebne klucze i konfigurację SSH wyłącznie na zaszyfrowany nośnik. Przed kopiowaniem sprawdź, czy pliki mają właściwego właściciela i uprawnienia. Po odtworzeniu katalog SSH powinien być dostępny tylko właścicielowi, prywatny klucz zwykle mieć tryb `600`, a publiczny `644`; skonfiguruj prawa tylko dla konkretnych własnych plików.
+Copy needed keys and SSH configuration only to encrypted media. Before copying, check that the files have the correct owner and permissions. After restoration, the SSH directory should be accessible only to its owner, a private key should usually have mode `600`, and a public key mode `644`; set permissions only on your specific files.
 
 ```zsh
 ls -ld <HOME>/.ssh
@@ -180,244 +182,244 @@ ls -l <SSH_PRIVATE_KEY> <SSH_PUBLIC_KEY>
 ssh-keygen -lf <SSH_PUBLIC_KEY>
 ```
 
-Ostatnie polecenie oblicza fingerprint **własnego klucza publicznego**. Porównaj go lokalnie z wcześniej zaufanym zapisem lub ustawieniem konta; nie umieszczaj rzeczywistego fingerprintu w publicznym poradniku. Po odtworzeniu sprawdź SHA256 plików, uprawnienia i połączenie z właściwą usługą.
+The last command calculates the fingerprint of **your own public key**. Compare it locally with a previously trusted record or account setting; do not put a real fingerprint in a public guide. After restoration, check file SHA256 hashes, permissions and the connection to the correct service.
 
-[↑ Powrót do spisu](#index)
+[↑ Back to contents](#index)
 
 <a id="safari"></a>
-## Konfiguracje aplikacji i Safari
+## Application and Safari settings
 
-Nie kopiuj całych wielogigabajtowych kontenerów bez audytu. Często wystarczą preferences, profile, konfiguracje rozszerzeń i snippets. Cache, historia i pliki runtime mogą być zbędne, duże albo wrażliwe. Ustal lokalizację ustawień danej wersji aplikacji i przetestuj odtworzenie na małym zakresie.
+Do not copy entire multi-gigabyte containers without review. Preferences, profiles, extension settings and snippets are often sufficient. Cache, history and runtime files may be unnecessary, large or sensitive. Determine where the relevant application version stores its settings and test restoration on a small scope.
 
-Gdy modyfikujesz plist, zmieniaj **tylko konkretny wpis**. Najpierw zachowaj zweryfikowaną kopię, potem zapisz zmianę przez plik tymczasowy z zachowaniem uprawnień. Na końcu zawsze wykonaj `plutil -lint` na zmienionym pliku. W przypadku Safari i rozszerzeń sprawdź też wynik `pluginkit -m -A -D`; wpis może wskazywać na osadzone rozszerzenie aplikacji, a nie osobną aplikację. Zobacz [problemy](#troubleshooting).
+When modifying a plist, change **only the specific entry**. First preserve a verified copy, then write the change through a temporary file while preserving permissions. Finally, always run `plutil -lint` on the changed file. For Safari and extensions, also check the result of `pluginkit -m -A -D`; an entry may point to an extension embedded in an application rather than a separate application. See [troubleshooting](#troubleshooting).
 
-[↑ Powrót do spisu](#index)
+[↑ Back to contents](#index)
 
 <a id="restore"></a>
-## Procedura odtwarzania
+## Restoration procedure
 
-1. Wybierz `CURRENT/<CATEGORY>/` albo konkretny `ARCHIVE/<CATEGORY>/<YYYY-MM-DD>/`. Potwierdź montowanie dysku i właściwą datę snapshotu.
-2. Z katalogu snapshotu uruchom `shasum -a 256 -c SHA256SUMS`; każda pozycja musi dać `OK`. Sprawdź także kompletność potrzebnych plików i metadanych.
-3. Porównaj snapshot z bieżącą konfiguracją: wersje plików, uprawnienia, zakres danych i lokalną historię Git. Zachowaj aktualny stan do ewentualnego cofnięcia.
-4. Nie nadpisuj działającego środowiska bez porównania. Wybierz najmniejszy wymagany zakres; najpierw odtwórz go w osobnym miejscu, jeśli to możliwe.
-5. Odtwórz tylko potrzebny plik, katalog lub repozytorium. Sekrety przenoś wyłącznie w bezpiecznym środowisku i przywróć odpowiednie uprawnienia.
-6. Po odtworzeniu uruchom właściwą aplikację lub usługę i sprawdź działanie: dla Zsh składnię, dla Git branche i historię, dla plist `plutil -lint`, dla SSH uprawnienia i połączenie. Odnotuj wynik i ewentualne braki.
+1. Choose `CURRENT/<CATEGORY>/` or a specific `ARCHIVE/<CATEGORY>/<YYYY-MM-DD>/`. Confirm that the disk is mounted and the snapshot date is correct.
+2. From the snapshot directory, run `shasum -a 256 -c SHA256SUMS`; every item must return `OK`. Also check that needed files and metadata are complete.
+3. Compare the snapshot with the current configuration: file versions, permissions, data scope and local Git history. Preserve the current state so you can roll back if needed.
+4. Do not overwrite a working environment without comparison. Choose the smallest required scope; restore it to a separate location first, if possible.
+5. Restore only the needed file, directory or repository. Transfer secrets only in a secure environment and restore the appropriate permissions.
+6. After restoration, run the relevant application or service and check its operation: syntax for Zsh, branches and history for Git, `plutil -lint` for plist files, permissions and connection for SSH. Record the result and any missing items.
 
-Gdy SHA256 nie przechodzi, nie uznawaj snapshotu za sprawdzony. Zachowaj go do diagnozy i wybierz inny zweryfikowany punkt.
+If SHA256 verification fails, do not consider the snapshot verified. Preserve it for diagnosis and select another verified point.
 
-[↑ Powrót do spisu](#index)
+[↑ Back to contents](#index)
 
 <a id="troubleshooting"></a>
-## Problemy i rozwiązania
+## Troubleshooting
 
-Zacznij od [procedury backupu](#backup), [weryfikacji](#verification) i [odtwarzania](#restore). Poniższa diagnostyka nie usuwa danych; polecenia zapisujące są opisane warunkami.
+Start with the [backup procedure](#backup), [verification](#verification) and [restoration](#restore). The diagnostics below do not delete data; commands that write are described with conditions.
 
-### 1. `rsync -E`: `Permission denied` lub `._*`
+### 1. `rsync -E`: `Permission denied` or `._*`
 
-**Objaw:** Kopiowanie z `-E` zgłasza odmowę dostępu lub problem z plikiem AppleDouble `._*`.
+**Symptom:** Copying with `-E` reports access denied or a problem with an AppleDouble `._*` file.
 
-**Przyczyna:** Systemowy macOS `openrsync` obsługuje metadane, ACL i xattr przez `-E`; AppleDouble jest sposobem zapisu takich metadanych. Cel lub plik może ich nie przyjąć.
+**Cause:** The system macOS `openrsync` handles metadata, ACL and xattr through `-E`; AppleDouble is a way to store such metadata. The destination or file may not accept it.
 
-**Bezpieczna diagnostyka:** `rsync -an --checksum <SOURCE_FILE> <DESTINATION>` oraz `rsync -anE --checksum <SOURCE_FILE> <DESTINATION>`.
+**Safe diagnostics:** `rsync -an --checksum <SOURCE_FILE> <DESTINATION>` and `rsync -anE --checksum <SOURCE_FILE> <DESTINATION>`.
 
-**Rozwiązanie:** Jeśli wariant bez `-E` działa, dla kodu i projektów użyj `rsync -a`, **o ile** ACL/xattr nie są wymagane. Jeśli są wymagane, ustal dokładnie, które metadane zawodzą i użyj zgodnego celu.
+**Solution:** If the variant without `-E` works, use `rsync -a` for code and projects **provided that** ACL/xattr are not required. If they are required, determine exactly which metadata fails and use a compatible destination.
 
-**Weryfikacja:** Checksum dry-run, SHA256 i osobna kontrola wymaganych metadanych; zobacz [weryfikację](#verification).
+**Verification:** Checksum dry-run, SHA256 and a separate check of required metadata; see [verification](#verification).
 
 ### 2. `rsync: mkstempsock: Invalid argument`
 
-**Objaw:** `rsync` zatrzymuje się na pliku specjalnym.
+**Symptom:** `rsync` stops at a special file.
 
-**Przyczyna:** Socket UNIX lub inny plik specjalny nie daje się odtworzyć na docelowym systemie plików.
+**Cause:** A UNIX socket or other special file cannot be recreated on the destination file system.
 
-**Bezpieczna diagnostyka:** `find <SOURCE> -type s -print` oraz `find <SOURCE> \( -type s -o -type p -o -type b -o -type c \) -print`.
+**Safe diagnostics:** `find <SOURCE> -type s -print` and `find <SOURCE> \( -type s -o -type p -o -type b -o -type c \) -print`.
 
-**Rozwiązanie:** Zidentyfikuj konkretny socket runtime i wyklucz **wyłącznie** tę ścieżkę z kopiowania. Nie wykluczaj całego `.git` ani katalogu projektu.
+**Solution:** Identify the specific runtime socket and exclude **only** that path from copying. Do not exclude the whole `.git` or project directory.
 
-**Weryfikacja:** Ponów `rsync` z tym samym filtrem i wykonaj checksum dry-run; zobacz [backup](#backup).
+**Verification:** Rerun `rsync` with the same filter and perform a checksum dry-run; see [backup](#backup).
 
-### 3. Socket Git fsmonitor
+### 3. Git fsmonitor socket
 
-**Objaw:** Kopiowanie repozytorium zatrzymuje się przy `.git/fsmonitor--daemon.ipc`.
+**Symptom:** Copying a repository stops at `.git/fsmonitor--daemon.ipc`.
 
-**Przyczyna:** To socket IPC działającego procesu, nie trwała część historii repozytorium.
+**Cause:** This is an IPC socket of a running process, not a persistent part of repository history.
 
-**Bezpieczna diagnostyka:** `find <PROJECT>/.git -type s -print` i kontrola wskazanej ścieżki.
+**Safe diagnostics:** `find <PROJECT>/.git -type s -print` and inspection of the indicated path.
 
-**Rozwiązanie:** Wyklucz konkretny socket runtime; zachowaj `.git`, branche, obiekty i metadane worktree.
+**Solution:** Exclude the specific runtime socket; keep `.git`, branches, objects and worktree metadata.
 
-**Weryfikacja:** Checksum dry-run z identycznym filtrem oraz testy Git z [rozdziału GitHub](#github).
+**Verification:** Checksum dry-run with the same filter and Git checks from the [GitHub section](#github).
 
-### 4. Przerwane kopiowanie do `.incoming`
+### 4. Interrupted copy to `.incoming`
 
-**Objaw:** `rsync` skończył z błędem po skopiowaniu części plików.
+**Symptom:** `rsync` ended with an error after copying some files.
 
-**Przyczyna:** Częściowy staging jest naturalnym skutkiem przerwania.
+**Cause:** Partial staging is the natural result of an interruption.
 
-**Bezpieczna diagnostyka:** Sprawdź komunikat błędu, `ls -ld <DEST>` i `rsync -acn --delete --itemize-changes <SOURCE>/ <DEST>/` z właściwymi filtrami.
+**Safe diagnostics:** Check the error message, `ls -ld <DEST>` and `rsync -acn --delete --itemize-changes <SOURCE>/ <DEST>/` with the appropriate filters.
 
-**Rozwiązanie:** Nie kasuj automatycznie `.incoming`. Popraw filtr lub źródło problemu i uruchom `rsync` ponownie; dokończy brakujące dane.
+**Solution:** Do not automatically delete `.incoming`. Fix the filter or the source of the problem and run `rsync` again; it will finish copying missing data.
 
-**Weryfikacja:** Checksum dry-run daje zero różnic, następnie SHA256 i ewentualne testy Git; zobacz [backup](#backup).
+**Verification:** The checksum dry-run shows zero differences, followed by SHA256 and any needed Git checks; see [backup](#backup).
 
-### 5. Zsh: `PATH` zawiera nagle jeden plik
+### 5. Zsh: `PATH` suddenly contains one file
 
-**Objaw:** `zsh: command not found: shasum`, `awk` lub `find` po pętli.
+**Symptom:** `zsh: command not found: shasum`, `awk` or `find` after a loop.
 
-**Przyczyna:** W Zsh `path` jest specjalną tablicą powiązaną z `PATH`. Kod `for path in ...` może podmienić ścieżkę programów.
+**Cause:** In Zsh, `path` is a special array tied to `PATH`. Code such as `for path in ...` can replace the program search path.
 
-**Bezpieczna diagnostyka:** `print -r -- "$PATH"` i `typeset -p path` w uszkodzonej sesji.
+**Safe diagnostics:** `print -r -- "$PATH"` and `typeset -p path` in the broken session.
 
-**Rozwiązanie:** Uruchom świeżą sesję: `exec /usr/bin/env -u PATH /bin/zsh -l`. W skryptach używaj nazw `FILE`, `NAME`, `ITEM` zamiast `path`.
+**Solution:** Start a fresh session: `exec /usr/bin/env -u PATH /bin/zsh -l`. In scripts, use names like `FILE`, `NAME`, `ITEM` instead of `path`.
 
-**Weryfikacja:** `command -v shasum awk find` wskazuje programy, a pierwotne polecenie działa.
+**Verification:** `command -v shasum awk find` points to programs, and the original command works.
 
 ### 6. `zsh: file exists: SHA256SUMS`
 
-**Objaw:** Powtórne utworzenie manifestu nie działa.
+**Symptom:** Regenerating the manifest does not work.
 
-**Przyczyna:** Opcja `noclobber` blokuje zwykłe `>` przy istniejącym pliku.
+**Cause:** The `noclobber` option blocks an ordinary `>` when the file already exists.
 
-**Bezpieczna diagnostyka:** `setopt | rg noclobber` i `ls -l SHA256SUMS`.
+**Safe diagnostics:** `setopt | rg noclobber` and `ls -l SHA256SUMS`.
 
-**Rozwiązanie:** Po potwierdzeniu właściwego katalogu wygeneruj manifest poleceniem z `>| SHA256SUMS` z [weryfikacji](#verification). Stary manifest po zmianie plików może dawać fałszywy mismatch.
+**Solution:** After confirming the correct directory, generate the manifest with the `>| SHA256SUMS` command from [verification](#verification). An old manifest after file changes may give a false mismatch.
 
-**Weryfikacja:** `shasum -a 256 -c SHA256SUMS` daje `OK` dla wszystkich pozycji, liczba wpisów się zgadza.
+**Verification:** `shasum -a 256 -c SHA256SUMS` returns `OK` for every item, and the entry count matches.
 
-### 7. SHA256: `FAILED open or read` po przeniesieniu
+### 7. SHA256: `FAILED open or read` after moving
 
-**Objaw:** Plik istnieje w nowej lokalizacji, lecz kontrola manifestu nie może go otworzyć.
+**Symptom:** The file exists at the new location, but the manifest check cannot open it.
 
-**Przyczyna:** Manifest zawiera starą absolutną ścieżkę.
+**Cause:** The manifest contains an old absolute path.
 
-**Bezpieczna diagnostyka:** Odczytaj ścieżkę z manifestu, porównaj zapisany hash z wynikiem `shasum -a 256 <DESTINATION>` dla odpowiadającego pliku. Nie publikuj hashy plików wrażliwych.
+**Safe diagnostics:** Read the path in the manifest and compare the recorded hash with `shasum -a 256 <DESTINATION>` for the corresponding file. Do not publish hashes of sensitive files.
 
-**Rozwiązanie:** Jeśli hash zapisany i rzeczywisty są identyczne, przebuduj manifest ze ścieżkami względnymi według [weryfikacji](#verification). Jeśli hashe się różnią, wyjaśnij rozbieżność przed zmianą manifestu.
+**Solution:** If the recorded and actual hashes match, rebuild the manifest with relative paths as in [verification](#verification). If they differ, explain the discrepancy before changing the manifest.
 
-**Weryfikacja:** Z katalogu snapshotu `shasum -a 256 -c SHA256SUMS` przechodzi po przeniesieniu.
+**Verification:** From the snapshot directory, `shasum -a 256 -c SHA256SUMS` succeeds after moving.
 
-### 8. `rsync` pokazuje `.d..t.... ./`
+### 8. `rsync` shows `.d..t.... ./`
 
-**Objaw:** Dry-run zgłasza tylko katalog główny mimo zgodnych plików.
+**Symptom:** The dry-run reports only the root directory even though the files match.
 
-**Przyczyna:** Różni się `mtime` katalogu; ten kod nie oznacza różnicy treści plików.
+**Cause:** The directory `mtime` differs; that code does not mean file contents differ.
 
-**Bezpieczna diagnostyka:** `rsync -acnO --delete --itemize-changes <SOURCE>/ <DEST>/`.
+**Safe diagnostics:** `rsync -acnO --delete --itemize-changes <SOURCE>/ <DEST>/`.
 
-**Rozwiązanie:** Do porównania treści użyj `-O`, które pomija czas katalogów. Jeśli czas katalogu jest istotny, sprawdź go i popraw osobno po analizie.
+**Solution:** Use `-O` for content comparison; it omits directory timestamps. If the directory timestamp matters, inspect and correct it separately after analysis.
 
-**Weryfikacja:** Dry-run z `-O` nie wykazuje różnic plików, a SHA256 przechodzi; zobacz [weryfikację](#verification).
+**Verification:** The dry-run with `-O` shows no file differences, and SHA256 succeeds; see [verification](#verification).
 
 ### 9. PlistBuddy: `Delete: Entry ... Does Not Exist`
 
-**Objaw:** Usunięcie wpisu nie działa, mimo że klucz jest w pliku.
+**Symptom:** Deleting an entry fails even though the key is in the file.
 
-**Przyczyna:** Nazwy kluczy ze spacjami lub nawiasami mogą być błędnie interpretowane przez składnię PlistBuddy.
+**Cause:** Key names with spaces or parentheses may be misinterpreted by PlistBuddy syntax.
 
-**Bezpieczna diagnostyka:** Odczytaj plist przez Python `plistlib` i wypisz **same nazwy kluczy**, bez wartości mogących zawierać sekrety.
+**Safe diagnostics:** Read the plist with Python `plistlib` and print **only key names**, without values that may contain secrets.
 
-**Rozwiązanie:** Po zachowaniu kopii użyj `plistlib` do zmiany jednego dokładnie wskazanego klucza, zapisz do pliku tymczasowego w tym samym katalogu, zachowaj permissions i dopiero wtedy zastąp plik. Nie kasuj całego plist.
+**Solution:** After preserving a copy, use `plistlib` to change one exactly identified key, write to a temporary file in the same directory, preserve permissions and only then replace the file. Do not delete the whole plist.
 
-**Weryfikacja:** `plutil -lint <PLIST_FILE>` oraz odczyt konkretnego klucza; zobacz [konfiguracje](#safari).
+**Verification:** `plutil -lint <PLIST_FILE>` and reading the specific key; see [settings](#safari).
 
-### 10. Usuwanie aplikacji: `Permission denied`
+### 10. Removing an application: `Permission denied`
 
-**Objaw:** Usunięcie aplikacji z `/Applications` jest zablokowane.
+**Symptom:** Removing an application from `/Applications` is blocked.
 
-**Przyczyna:** Aplikacja może należeć do `root` lub mieć ograniczenia uprawnień i flag.
+**Cause:** The application may be owned by `root` or restricted by permissions and flags.
 
-**Bezpieczna diagnostyka:** `ls -ldOe "/Applications/<APP_NAME>.app"` oraz `stat -f 'owner=%Su group=%Sg mode=%Sp flags=%Sf' "/Applications/<APP_NAME>.app"`.
+**Safe diagnostics:** `ls -ldOe "/Applications/<APP_NAME>.app"` and `stat -f 'owner=%Su group=%Sg mode=%Sp flags=%Sf' "/Applications/<APP_NAME>.app"`.
 
-**Rozwiązanie:** Najpierw potwierdź, że to właściwa aplikacja, że jej dane i konfiguracja są zabezpieczone i że użytkownik świadomie chce ją usunąć. Jeśli właścicielem jest `root` i uprawnienia tego wymagają, użyj `sudo` **tylko** dla konkretnej ścieżki aplikacji. Bez wildcardów.
+**Solution:** First confirm that it is the correct application, that its data and settings are backed up, and that the user deliberately wants to remove it. If `root` owns it and the permissions require it, use `sudo` **only** for the specific application path. No wildcards.
 
-**Weryfikacja:** Sprawdź brak tej dokładnej aplikacji i działanie pozostałych programów; zobacz [bezpieczeństwo](#security).
+**Verification:** Check that this exact application is gone and other programs still work; see [security](#security).
 
-### 11. Usunięte rozszerzenie Safari nadal widnieje
+### 11. A removed Safari extension still appears
 
-**Objaw:** Stary wpis rozszerzenia pozostaje w konfiguracji.
+**Symptom:** An old extension entry remains in the configuration.
 
-**Przyczyna:** Rejestr rozszerzeń lub plist nadal zawiera identyfikator.
+**Cause:** The extension registry or plist still contains the identifier.
 
-**Bezpieczna diagnostyka:** `pluginkit -m -A -D` i wyszukiwanie `<BUNDLE_IDENTIFIER>` w odpowiednich plistach bez wypisywania wartości wrażliwych.
+**Safe diagnostics:** `pluginkit -m -A -D` and a search for `<BUNDLE_IDENTIFIER>` in the relevant plist files without printing sensitive values.
 
-**Rozwiązanie:** Ustal, czy identyfikator jest martwy; usuń tylko konkretny wpis z właściwego plist po zabezpieczeniu kopii. Nie kasuj całych plistów.
+**Solution:** Determine whether the identifier is stale; remove only the specific entry from the appropriate plist after preserving a copy. Do not delete whole plist files.
 
-**Weryfikacja:** `plutil -lint <PLIST_FILE>`, ponowny odczyt wpisu i kontrola Safari; zobacz [konfiguracje](#safari).
+**Verification:** `plutil -lint <PLIST_FILE>`, reread the entry and check Safari; see [settings](#safari).
 
-### 12. Dwie pozycje wyglądają jak dwa rozszerzenia
+### 12. Two entries look like two extensions
 
-**Objaw:** System pokazuje aplikację i rozszerzenie osobno.
+**Symptom:** The system shows an application and an extension separately.
 
-**Przyczyna:** Jedna aplikacja może zawierać osadzone rozszerzenie:
+**Cause:** One application may contain an embedded extension:
 
 ```text
 <APP_NAME>.app
 └── Contents/PlugIns/<EXTENSION>.appex
 ```
 
-**Bezpieczna diagnostyka:** Sprawdź strukturę pakietu aplikacji i identyfikatory w `pluginkit -m -A -D`.
+**Safe diagnostics:** Check the application bundle structure and identifiers in `pluginkit -m -A -D`.
 
-**Rozwiązanie:** Traktuj tę parę jako aplikację i jej embedded extension, jeśli ścieżki to potwierdzają; nie usuwaj jednej pozycji wyłącznie na podstawie liczby wpisów.
+**Solution:** Treat the pair as an application and its embedded extension if the paths confirm it; do not remove one entry based solely on the number of entries.
 
-**Weryfikacja:** Aplikacja i rozszerzenie działają, a konfiguracja wskazuje oczekiwaną parę; zobacz [Safari](#safari).
+**Verification:** The application and extension work, and the configuration points to the expected pair; see [Safari](#safari).
 
-### 13. Dwa backupy wyglądają podobnie
+### 13. Two backups look similar
 
-**Objaw:** Nie wiadomo, czy starszą kopię można uznać za duplikat.
+**Symptom:** It is unclear whether the older copy is a duplicate.
 
-**Przyczyna:** Nazwy i rozmiary nie dowodzą identycznej treści.
+**Cause:** Names and sizes do not prove identical content.
 
-**Bezpieczna diagnostyka:** Oblicz SHA256 odpowiadających sobie plików lub manifesty obu katalogów.
+**Safe diagnostics:** Calculate SHA256 for corresponding files or manifests for both directories.
 
-**Rozwiązanie:** Ten sam SHA256 wskazuje duplikat treści pliku; inny SHA256 oznacza unikalną wersję. Przed redukcją całych snapshotów uwzględnij też listę plików, metadane i historię Git.
+**Solution:** The same SHA256 indicates duplicate file content; a different SHA256 indicates a unique version. Before reducing whole snapshots, also consider file lists, metadata and Git history.
 
-**Weryfikacja:** Porównanie wszystkich wymaganych hashy, liczby plików i zakresu snapshotów; zobacz [weryfikację](#verification).
+**Verification:** Compare all required hashes, file counts and snapshot scopes; see [verification](#verification).
 
-### 14. Projekt zajmuje kilka GB przez build i cache
+### 14. A project occupies several GB because of build and cache files
 
-**Objaw:** Backup projektu jest nieproporcjonalnie duży.
+**Symptom:** The project backup is disproportionately large.
 
-**Przyczyna:** Katalogi build, cache lub zależności zawierają dane generowane automatycznie.
+**Cause:** Build, cache or dependency directories contain automatically generated data.
 
-**Bezpieczna diagnostyka:** `du -sh <PROJECT>/*` i wyszukiwanie katalogów z [Projektów](#projects).
+**Safe diagnostics:** `du -sh <PROJECT>/*` and search for directories from [Projects](#projects).
 
-**Rozwiązanie:** Po audycie dodaj precyzyjne exclude tylko dla danych odtwarzalnych. Gotowy APK, IPA lub inny artefakt może być jedyną kopią i wtedy nie wolno go automatycznie wykluczać.
+**Solution:** After review, add precise exclusions only for reproducible data. A finished APK, IPA or other artifact may be the only copy and must not be excluded automatically.
 
-**Weryfikacja:** Lista pominięć jest uzasadniona, checksum dry-run przechodzi z tymi samymi filtrami, a unikalne artefakty są obecne.
+**Verification:** The omission list is justified, the checksum dry-run succeeds with the same filters, and unique artifacts are present.
 
-### 15. Lokalna gałąź nie istnieje na GitHub
+### 15. A local branch does not exist on GitHub
 
-**Objaw:** `git clone` nie daje gałęzi widocznej lokalnie.
+**Symptom:** `git clone` does not provide a branch visible locally.
 
-**Przyczyna:** Gałąź lub jej commity nie zostały wypchnięte.
+**Cause:** The branch or its commits have not been pushed.
 
-**Bezpieczna diagnostyka:** `git -C <PROJECT> branch -a -vv`, `git -C <PROJECT> worktree list` i `git -C <PROJECT> log --branches --not --remotes --oneline`.
+**Safe diagnostics:** `git -C <PROJECT> branch -a -vv`, `git -C <PROJECT> worktree list` and `git -C <PROJECT> log --branches --not --remotes --oneline`.
 
-**Rozwiązanie:** Przed redukcją `.git` zachowaj pełne repozytorium i powiązane worktree, jeśli coś istnieje tylko lokalnie.
+**Solution:** Before reducing `.git`, keep the complete repository and associated worktrees if anything exists only locally.
 
-**Weryfikacja:** W kopii widać te same branche, commity i worktree; zobacz [GitHub](#github).
+**Verification:** The copy shows the same branches, commits and worktrees; see [GitHub](#github).
 
-### 16. `git fsck` pokazuje dangling commit/tree/blob
+### 16. `git fsck` shows a dangling commit/tree/blob
 
-**Objaw:** W raporcie występuje `dangling commit`, `dangling tree` lub `dangling blob`.
+**Symptom:** The report contains `dangling commit`, `dangling tree` or `dangling blob`.
 
-**Przyczyna:** Obiekty nie są osiągalne z aktualnych referencji; nie oznacza to automatycznie uszkodzenia.
+**Cause:** The objects are not reachable from current references; this does not automatically mean corruption.
 
-**Bezpieczna diagnostyka:** `git -C <PROJECT> fsck --full` i ocena historii oraz referencji.
+**Safe diagnostics:** `git -C <PROJECT> fsck --full` and review of history and references.
 
-**Rozwiązanie:** Zachowaj pełne `.git` w historycznym backupie. Nie kasuj dangling objects tylko dlatego, że są dangling; mogą zawierać jedyną wersję danych.
+**Solution:** Keep the complete `.git` in a historical backup. Do not delete dangling objects merely because they are dangling; they may hold the only version of data.
 
-**Weryfikacja:** Kopia przechodzi kontrolę integralności i zachowuje oczekiwane obiekty; zobacz [GitHub](#github).
+**Verification:** The copy passes the integrity check and retains the expected objects; see [GitHub](#github).
 
-### 17. Manifest zawiera samego siebie
+### 17. The manifest includes itself
 
-**Objaw:** Liczba wpisów jest większa niż liczba plików danych albo kontrola manifestu jest niestabilna.
+**Symptom:** The entry count exceeds the number of data files, or manifest verification is unstable.
 
-**Przyczyna:** `SHA256SUMS` został uwzględniony przy liczeniu własnego hasha.
+**Cause:** `SHA256SUMS` was included when calculating its own hash.
 
-**Bezpieczna diagnostyka:** Porównaj liczbę wpisów z liczbą zwykłych plików danych, pomijając `SHA256SUMS`.
+**Safe diagnostics:** Compare the entry count with the number of regular data files, excluding `SHA256SUMS`.
 
-**Rozwiązanie:** Po sprawdzeniu katalogu utwórz manifest ponownie:
+**Solution:** After checking the directory, regenerate the manifest:
 
 ```zsh
 find . -type f ! -name SHA256SUMS -print0 \
@@ -425,74 +427,74 @@ find . -type f ! -name SHA256SUMS -print0 \
   | xargs -0 shasum -a 256 >| SHA256SUMS
 ```
 
-**Weryfikacja:** `shasum -a 256 -c SHA256SUMS` przechodzi, a przy 100 plikach danych jest 100 wpisów i 101 plików łącznie.
+**Verification:** `shasum -a 256 -c SHA256SUMS` succeeds; with 100 data files there are 100 entries and 101 files in total.
 
-### 18. Czy `.incoming` można finalizować?
+### 18. Can `.incoming` be finalized?
 
-**Objaw:** Kopia wygląda na gotową, lecz nie ma pewności co do kompletności.
+**Symptom:** The copy looks ready, but its completeness is uncertain.
 
-**Przyczyna:** Samo zakończenie kopiowania nie dowodzi zgodności ani poprawności repozytorium.
+**Cause:** Completion of copying alone does not prove a match or repository correctness.
 
-**Bezpieczna diagnostyka:** Sprawdź kolejno: źródło istnieje; staging istnieje; `rsync` skończył bez błędu; checksum dry-run ma zero różnic; SHA256 ma PASS; dla krytycznych repozytoriów `git fsck` przechodzi; liczba plików się zgadza.
+**Safe diagnostics:** Check in order: the source exists; staging exists; `rsync` ended without error; checksum dry-run shows zero differences; SHA256 passes; `git fsck` passes for critical repositories; file counts match.
 
-**Rozwiązanie:** Dopiero po spełnieniu checklisty i zabezpieczeniu poprzedniego finalnego stanu wykonaj `mv` z `.incoming` do nazwy finalnej; zobacz [procedurę](#backup).
+**Solution:** Only after satisfying the checklist and preserving the previous final state, run `mv` from `.incoming` to the final name; see the [procedure](#backup).
 
-**Weryfikacja:** Finalny katalog istnieje, nie ma konkurencyjnej częściowej kopii, a manifest przechodzi z nowej lokalizacji.
+**Verification:** The final directory exists, there is no competing partial copy, and the manifest succeeds from the new location.
 
-### 19. Czy stare źródło można usunąć?
+### 19. Can the old source be deleted?
 
-**Objaw:** Migracja wygląda na skończoną, ale stare dane zajmują miejsce.
+**Symptom:** Migration seems complete, but the old data uses space.
 
-**Przyczyna:** Pozorna zgodność może ukrywać unikalne wersje, branche, klucze lub artefakty.
+**Cause:** An apparent match may hide unique versions, branches, keys or artifacts.
 
-**Bezpieczna diagnostyka:** Potwierdź istnienie `CURRENT`/`ARCHIVE`, SHA256 PASS, checksum źródło ↔ archiwum PASS, rozdzieloną historię, duplikaty rozpoznane hashami i brak unikalnych branchy, kluczy oraz artefaktów.
+**Safe diagnostics:** Confirm that `CURRENT`/`ARCHIVE` exists, SHA256 passes, source ↔ archive checksum passes, history is accounted for, duplicates are identified by hashes, and no unique branches, keys or artifacts remain.
 
-**Rozwiązanie:** DELETE wykonaj ostatni, wyłącznie dla dokładnie wskazanego i zweryfikowanego starego źródła, po świadomej decyzji właściciela danych.
+**Solution:** Perform DELETE last, only for the precisely identified and verified old source, after a deliberate decision by the data owner.
 
-**Weryfikacja:** Sprawdź, że `CURRENT` i `ARCHIVE` nadal przechodzą SHA256 oraz że potrzebne dane dają się odtworzyć; zobacz [odtwarzanie](#restore).
+**Verification:** Check that `CURRENT` and `ARCHIVE` still pass SHA256 and that needed data can be restored; see [restoration](#restore).
 
-### 20. Szybka diagnostyka komunikatów
+### 20. Quick message diagnostics
 
-**Objaw:** Pojawia się jeden z typowych komunikatów poniżej.
+**Symptom:** One of the common messages below appears.
 
-**Przyczyna:** Najczęstsze przyczyny zestawiono w tabeli; konkretny przypadek wymaga potwierdzenia.
+**Cause:** The table lists the most common causes; the specific case needs confirmation.
 
-**Bezpieczna diagnostyka:** Wybierz odpowiedni wiersz i uruchom wskazaną kontrolę przed zapisem.
+**Safe diagnostics:** Choose the appropriate row and run the indicated check before writing.
 
-**Rozwiązanie:** Zastosuj rozwiązanie dopiero po potwierdzeniu przyczyny i warunków z odpowiedniego problemu.
+**Solution:** Apply the solution only after confirming the cause and the conditions in the relevant issue.
 
-**Weryfikacja:** Powtórz kontrolę z wiersza, a dla kopii wykonaj [checksum i SHA256](#verification).
+**Verification:** Repeat the check from the row, and for copies run [checksum and SHA256](#verification).
 
-| Komunikat / objaw | Najczęstsza przyczyna | Co sprawdzić | Rozwiązanie |
+| Message / symptom | Most common cause | What to check | Solution |
 | --- | --- | --- | --- |
-| `Permission denied` przy `rsync -E` | AppleDouble, ACL lub xattr | Dry-run z `-E` i bez `-E` | Dla kodu bez wymaganych metadanych użyj `-a`; zobacz problem 1. |
-| `mkstempsock: Invalid argument` | Socket/runtime | `find <SOURCE> -type s -print` | Wyklucz tylko rozpoznany socket; problemy 2–3. |
-| `command not found` po pętli Zsh | Nadpisane `path`/`PATH` | `print -r -- "$PATH"` | Nowa sesja i zmiana nazwy zmiennej; problem 5. |
-| `file exists: SHA256SUMS` | `noclobber` | `setopt` i właściwy katalog | `>| SHA256SUMS`; problem 6. |
-| `.d..t.... ./` | Czas katalogu | Dry-run z `-O` | Oddziel kontrolę czasu od treści; problem 8. |
-| `FAILED open or read` | Stara absolutna ścieżka | Hash zapisany i aktualny | Manifest względny po potwierdzeniu hashy; problem 7. |
-| `Delete: Entry Does Not Exist` | Składnia klucza plist | Dokładna nazwa klucza | `plistlib` i jeden wpis; problem 9. |
-| `Permission denied` przy usuwaniu aplikacji | Właściciel/flags | `ls -ldOe`, `stat` | Dokładna ścieżka, ewentualnie `sudo`; problem 10. |
-| `dangling commit/tree/blob` | Obiekt poza referencjami | `git fsck --full` | Zachowaj obiekty do oceny; problem 16. |
-| Checksum dry-run pokazuje różnice | Brak pliku, inna treść lub dodatkowy manifest | Kody `rsync`, filtry i lista plików | Wyjaśnij każdą różnicę, ponów kopiowanie; problemy 4 i 8. |
+| `Permission denied` with `rsync -E` | AppleDouble, ACL or xattr | Dry-run with `-E` and without `-E` | For code without required metadata, use `-a`; see issue 1. |
+| `mkstempsock: Invalid argument` | Socket/runtime | `find <SOURCE> -type s -print` | Exclude only the identified socket; issues 2–3. |
+| `command not found` after a Zsh loop | Overwritten `path`/`PATH` | `print -r -- "$PATH"` | New session and rename the variable; issue 5. |
+| `file exists: SHA256SUMS` | `noclobber` | `setopt` and the correct directory | `>\| SHA256SUMS`; issue 6. |
+| `.d..t.... ./` | Directory timestamp | Dry-run with `-O` | Check time separately from content; issue 8. |
+| `FAILED open or read` | Old absolute path | Recorded and current hash | Relative manifest after confirming hashes; issue 7. |
+| `Delete: Entry Does Not Exist` | Plist key syntax | Exact key name | `plistlib` and one entry; issue 9. |
+| `Permission denied` when removing an application | Owner/flags | `ls -ldOe`, `stat` | Exact path, `sudo` if necessary; issue 10. |
+| `dangling commit/tree/blob` | Object outside references | `git fsck --full` | Keep objects for assessment; issue 16. |
+| Checksum dry-run shows differences | Missing file, different content or extra manifest | `rsync` codes, filters and file list | Explain every difference, rerun copying; issues 4 and 8. |
 
-[↑ Powrót do spisu](#index)
+[↑ Back to contents](#index)
 
 <a id="publishing"></a>
-## Co można bezpiecznie opublikować na GitHub
+## What can safely be published on GitHub
 
-**TAK:** strukturę katalogów, przykładowe komendy, placeholdery, ogólne zasady, przykładowe exclude i troubleshooting bez prywatnych danych.
+**YES:** directory structure, example commands, placeholders, general principles, example exclusions and troubleshooting without private data.
 
-**NIE:** private keys, tokeny, hasła, credentials, prywatne IP, UUID, osobiste ścieżki, nazwy prywatnych projektów i repozytoriów ani zawartość plików mogących zawierać sekrety. Przed `git add` i publikacją przejrzyj plik oraz wynik skanera sekretów, a przed publicznym push także historię commitów.
+**NO:** private keys, tokens, passwords, credentials, private IPs, UUIDs, personal paths, names of private projects and repositories, or contents of files that may contain secrets. Before `git add` and publication, review the file and the secret scanner results, and before a public push, also review commit history.
 
-Ten plik jest głównym dokumentem publicznym. Jeśli później powstaną dodatkowe publiczne instrukcje, dodaj tu linki do nich; każda niech linkuje z powrotem do `README.md`, a dokumenty powiązane niech linkują między sobą. Nie powielaj całych instrukcji.
+This file is the main public document. If additional public guides are created later, add links to them here; each should link back to `README.md`, and related documents should link to each other. Do not duplicate whole guides.
 
-[↑ Powrót do spisu](#index)
+[↑ Back to contents](#index)
 
 <a id="example"></a>
-## Przykład konfiguracji
+## Configuration example
 
-**TO TYLKO PRZYKŁAD. Wszystkie dane są fikcyjne.**
+**THIS IS ONLY AN EXAMPLE. All data is fictional.**
 
 ```text
 <HOME> = /Users/alex
@@ -504,13 +506,13 @@ Ten plik jest głównym dokumentem publicznym. Jeśli później powstaną dodatk
 <YYYY-MM-DD> = 2026-01-15
 ```
 
-Przykładowy wynik po podstawieniu danych pokazuje podział na najnowszy stan i punkt historyczny:
+The example result after substituting values shows the division between the latest state and a historical point:
 
 ```text
 /Volumes/Backup/CURRENT/Projects/ExampleApp/
 /Volumes/Backup/ARCHIVE/Projects/2026-01-15/
 ```
 
-Przed użyciem u siebie zastąp każdą wartość własną, sprawdź montowanie woluminu i przejdź przez [procedurę backupu](#backup).
+Before using this yourself, replace every value with your own, check that the volume is mounted and follow the [backup procedure](#backup).
 
-[↑ Powrót do spisu](#index)
+[↑ Back to contents](#index)
